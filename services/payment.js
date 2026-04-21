@@ -2,19 +2,19 @@ const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PRICE_MAP = {
-  renai:     process.env.STRIPE_PRICE_RENAI,
-  shigoto:   process.env.STRIPE_PRICE_SHIGOTO,
-  zaiu:      process.env.STRIPE_PRICE_ZAIU,
-  honshitsu: process.env.STRIPE_PRICE_HONSHITSU,
-  kotoshi:   process.env.STRIPE_PRICE_KOTOSHI,
+  renai:   process.env.STRIPE_PRICE_RENAI,
+  shigoto: process.env.STRIPE_PRICE_SHIGOTO,
+  zaiu:    process.env.STRIPE_PRICE_ZAIU,
+  kotoshi: process.env.STRIPE_PRICE_KOTOSHI,
+  sekkei:  process.env.STRIPE_PRICE_SEKKEI,
 };
 
 const LABEL_MAP = {
-  renai:     '恋愛',
-  shigoto:   '仕事',
-  zaiu:      '財運',
-  honshitsu: '本質と対人',
-  kotoshi:   '今年の運勢',
+  renai:   '恋愛鑑定',
+  shigoto: '仕事鑑定',
+  zaiu:    '財運鑑定',
+  kotoshi: '今年の運勢',
+  sekkei:  '人生の設計図',
 };
 
 async function createCheckoutSession(lineUserId, fortuneType, userName, birthDate) {

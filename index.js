@@ -155,11 +155,12 @@ function buildPersonSelectMessage(persons) {
 
 // ─── 決済ボタン Flex メッセージ ──────────────────────────────
 async function buildPaymentMessage(lineUserId, name, date) {
-  const [urlRenai, urlShigoto, urlZaiu, urlKotoshi] = await Promise.all([
-    createCheckoutSession(lineUserId, 'renai',    name, date),
-    createCheckoutSession(lineUserId, 'shigoto',  name, date),
-    createCheckoutSession(lineUserId, 'zaiu',     name, date),
-    createCheckoutSession(lineUserId, 'kotoshi',  name, date),
+  const [urlRenai, urlShigoto, urlZaiu, urlKotoshi, urlSekkei] = await Promise.all([
+    createCheckoutSession(lineUserId, 'renai',   name, date),
+    createCheckoutSession(lineUserId, 'shigoto', name, date),
+    createCheckoutSession(lineUserId, 'zaiu',    name, date),
+    createCheckoutSession(lineUserId, 'kotoshi', name, date),
+    createCheckoutSession(lineUserId, 'sekkei',  name, date),
   ]);
 
   return {
@@ -184,9 +185,16 @@ async function buildPaymentMessage(lineUserId, name, date) {
         layout: 'vertical',
         spacing: 'md',
         contents: [
-          { type: 'text', text: `${name}さんの鑑定タイプを選んでください`, wrap: true },
-          { type: 'text', text: '恋愛・仕事・財運：各1,000円（税込）', size: 'sm', color: '#888888' },
-          { type: 'text', text: '今年の運勢：1,500円（税込）', size: 'sm', color: '#888888' },
+          { type: 'text', text: `${name}さんの鑑定タイプを選んでください`, wrap: true, weight: 'bold' },
+          { type: 'separator', margin: 'md' },
+          { type: 'text', text: '【単品鑑定】', size: 'sm', weight: 'bold', color: '#6B3FA0', margin: 'md' },
+          { type: 'text', text: '💕 恋愛｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '💼 仕事｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '💰 財運｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '📅 今年の運勢｜約600文字　1,500円（税込）', size: 'sm', color: '#555555' },
+          { type: 'separator', margin: 'md' },
+          { type: 'text', text: '【人生の設計図】', size: 'sm', weight: 'bold', color: '#6B3FA0', margin: 'md' },
+          { type: 'text', text: '🌙 約3,500文字・5つの本格鑑定　2,980円（税込）', size: 'sm', color: '#555555', wrap: true },
         ],
       },
       footer: {
@@ -194,10 +202,11 @@ async function buildPaymentMessage(lineUserId, name, date) {
         layout: 'vertical',
         spacing: 'sm',
         contents: [
-          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💕 恋愛',        uri: urlRenai   }},
-          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💼 仕事',        uri: urlShigoto }},
-          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💰 財運',        uri: urlZaiu    }},
-          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '📅 今年の運勢',  uri: urlKotoshi }},
+          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💕 恋愛　880円',        uri: urlRenai   }},
+          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💼 仕事　880円',        uri: urlShigoto }},
+          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💰 財運　880円',        uri: urlZaiu    }},
+          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '📅 今年の運勢　1,500円', uri: urlKotoshi }},
+          { type: 'button', style: 'secondary', color: '#3D1A6E', action: { type: 'uri', label: '🌙 人生の設計図　2,980円', uri: urlSekkei }},
         ],
       },
     },
