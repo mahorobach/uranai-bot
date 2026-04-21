@@ -252,7 +252,7 @@ async function handleMessage(event) {
     if (fortunes.length === 0) {
       return reply(replyToken, {
         type: 'text',
-        text: '🔮 月読み占いへようこそ！\n\nまず無料鑑定を受けてください。\nお名前と生年月日をスペースで区切って送ってください。\n\n例：田中花子 1990-05-15',
+        text: '🌙 月読み占いへようこそ\n\nまずはお名前と生年月日をお送りください。\nあなただけの鑑定をお届けします。\n\n📝 例：田中花子 1990-05-15',
       });
     }
 

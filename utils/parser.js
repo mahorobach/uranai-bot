@@ -48,7 +48,7 @@ function parseUserInput(text) {
     if (!name) {
       return {
         isValid: false,
-        error: '名前が見つかりません。\n例：田中花子 1990-05-15',
+        error: 'お名前が読み取れませんでした。\nお名前と生年月日をスペースで区切ってお送りください。\n例：田中花子 1990-05-15',
       };
     }
 
@@ -57,8 +57,7 @@ function parseUserInput(text) {
 
   return {
     isValid: false,
-    error:
-      '入力形式が正しくありません。\n例：田中花子 1990-05-15',
+    error: 'お名前と生年月日をスペースで区切ってお送りください。\n例：田中花子 1990-05-15',
   };
 }
 

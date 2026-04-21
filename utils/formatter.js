@@ -168,7 +168,21 @@ function formatHowtoMessage() {
 
 // ─── エラー・ウェルカム ───────────────────────────────────────────
 function formatErrorMessage(errorText) {
-  return { type: 'text', text: `❌ エラー\n${errorText}` };
+  return {
+    type: 'text',
+    text: [
+      '🌙 うまく読み取れませんでした',
+      '',
+      'お名前と生年月日をスペースで区切って',
+      'もう一度お送りください。',
+      '',
+      '📝 例：',
+      '田中花子 1990-05-15',
+      '田中花子 1990/05/15',
+      '田中花子 19900515',
+      '田中花子 1990年5月15日',
+    ].join('\n'),
+  };
 }
 
 function getWelcomeMessage() {
