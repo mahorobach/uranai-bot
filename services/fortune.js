@@ -257,6 +257,57 @@ async function generatePaidFortune(name, date, fortuneType) {
 
     const sureiMeaning = await getSureiMeaning(sureiNumber);
 
+    // ── kotoshi: 日付に応じた期間判定 ────────────────────────────
+    let systemPrompt;
+    let periodLine = '';
+
+    if (fortuneType === 'kotoshi') {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const nextYear = year + 1;
+
+      let period, opening, periodDetail;
+
+      if (month <= 4) {
+        period       = `${year}年1月〜12月`;
+        opening      = `${year}年のあなたのテーマは`;
+        periodDetail = `${year}年全体の運勢を鑑定してください。`;
+      } else if (month <= 9) {
+        period       = `${year}年${month}月〜${nextYear}年${month}月`;
+        opening      = `これからの一年、あなたのテーマは`;
+        periodDetail = `${year}年${month}月から${nextYear}年${month}月までの一年間の運勢を鑑定してください。`;
+      } else {
+        period       = `${nextYear}年1月〜12月`;
+        opening      = `来年${nextYear}年に向けて、あなたのテーマは`;
+        periodDetail = `来年${nextYear}年全体の運勢を鑑定してください。`;
+      }
+
+      periodLine = `\n鑑定期間: ${period}`;
+
+      systemPrompt = `あなたは30年以上の経験を持つ占い師です。
+渡された命式・五行・数霊データをもとに、${periodDetail}
+
+【鑑定対象期間】${period}
+
+【必ず含める内容】
+・冒頭は必ず「${opening}〜」という書き出しで始める
+・対象期間全体の運気の流れとテーマ
+・この時期に特に意識すべきこと・チャンスが来る分野
+・対人関係・仕事・恋愛のうち最も動きやすい分野を1つ選んで具体的に
+・この時期にやっておくべき具体的な行動
+・最後に温かい締めくくりのメッセージ
+
+【ルール】
+・400〜500文字、です・ます調
+・記号・箇条書き・見出し・#・*は使わない
+・ひと続きの読み物として書く
+・占い師が目の前の人に語りかけるような温かいトーンで
+・「${opening}」という書き出しを必ず冒頭に使うこと`;
+    } else {
+      systemPrompt = PAID_PROMPTS[fortuneType] ?? PAID_PROMPTS.honshitsu;
+    }
+
     const structuredData = `
 【鑑定対象】${name}（${date}生まれ・${age}歳）
 
@@ -268,7 +319,7 @@ async function generatePaidFortune(name, date, fortuneType) {
 
 【数霊】
 ・数霊数: ${sureiNumber}
-・意味: ${sureiMeaning}
+・意味: ${sureiMeaning}${periodLine}
 `.trim();
 
     if (!anthropic) {
@@ -278,7 +329,7 @@ async function generatePaidFortune(name, date, fortuneType) {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
-      system: PAID_PROMPTS[fortuneType] ?? PAID_PROMPTS.honshitsu,
+      system: systemPrompt,
       messages: [{ role: 'user', content: structuredData }],
     });
 
