@@ -136,7 +136,7 @@ async function generateCompleteFortune(name, date) {
 
     // 4. 構造化データを渡して無料版鑑定文を生成
     if (!anthropic) {
-      return buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fallbackText(name, calc, sureiNumber));
+      return buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fallbackText(name, calc, sureiNumber), '');
     }
 
     const message = await anthropic.messages.create({
@@ -149,13 +149,17 @@ async function generateCompleteFortune(name, date) {
 温かく柔らかい鑑定文を書いてください。
 権威的・断定的な表現は避け、寄り添い、包み込むようなトーンで書いてください。
 
-【構成】
+以下の形式で出力してください。
+他の文字・記号・説明は一切不要です。
 
-①冒頭の共感ワード（3〜4行）
+THEME:（この人の人生のテーマを10文字以内で言い切る）
+FORTUNE:（以下の構成で鑑定文を書く）
+
+【FORTUNEの構成】
+①冒頭の共感ワード（2〜3行）
 「あなたはこんな経験がありませんか？」という書き出しで始め、
 その人の五行・数霊から読み取れる内面的な悩みや葛藤を
 具体的に描写してください。
-読んだ人が「なぜわかるの…」と感じる内容にしてください。
 
 ②基本性格・本質（4〜5行）
 その人の核となる性格・本質を
@@ -169,32 +173,40 @@ async function generateCompleteFortune(name, date) {
 未来予測・年運・恋愛運・仕事運には一切触れないでください。
 
 【ルール】
-・全体で400〜500文字
+・FORTUNE部分は400〜500文字
 ・です・ます調
 ・記号（# * - [] ）、見出し、箇条書きは使わない
 ・ひと続きの読み物として書く
-・月の光のように優しく、柔らかく、寄り添うトーンで
-・有料鑑定への橋渡しとして、全体像の輪郭だけを優しく照らす
-・深い内容（恋愛・仕事・財運・今年の運勢）には踏み込まない`,
+・月の光のように優しく、柔らかく、寄り添うトーンで`,
       messages: [{ role: 'user', content: structuredData }],
     });
 
-    const fortuneText = message.content[0]?.text ?? fallbackText(name, calc, sureiNumber);
+    const rawText = message.content[0]?.text ?? '';
 
-    return buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fortuneText);
+    // THEME と FORTUNE を分離
+    const themeMatch   = rawText.match(/THEME[:：]\s*(.+)/);
+    const fortuneMatch = rawText.match(/FORTUNE[:：]\s*([\s\S]+)/);
+
+    const theme       = themeMatch   ? themeMatch[1].trim()   : '';
+    const fortuneText = fortuneMatch
+      ? fortuneMatch[1].trim()
+      : fallbackText(name, calc, sureiNumber);
+
+    return buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fortuneText, theme);
   } catch (error) {
     console.error('Fortune generation error:', error);
     return { error: '占いの生成に失敗しました。しばらくしてからお試しください。' };
   }
 }
 
-function buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fortuneText) {
+function buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fortuneText, theme = '') {
   const { yearPillar, monthPillar, dayPillar, tsuhen, junishi, element } = calc;
   return {
     name,
     date,
     age,
     fortune: fortuneText,
+    theme,
     sureiNumber,
     sureiMeaning,
     metadata: {
