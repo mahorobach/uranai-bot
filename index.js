@@ -118,7 +118,8 @@ const PAID_FLEX_MESSAGE = {
       spacing: 'md',
       contents: [
         { type: 'text', text: '鑑定タイプを選んでください', wrap: true },
-        { type: 'text', text: '各1,000円（税込）', size: 'sm', color: '#888888' },
+        { type: 'text', text: '恋愛・仕事・財運：各1,000円（税込）', size: 'sm', color: '#888888' },
+        { type: 'text', text: '今年の運勢：1,500円（税込）', size: 'sm', color: '#888888' },
       ],
     },
     footer: {

@@ -6,6 +6,7 @@ const PRICE_MAP = {
   shigoto:   process.env.STRIPE_PRICE_SHIGOTO,
   zaiu:      process.env.STRIPE_PRICE_ZAIU,
   honshitsu: process.env.STRIPE_PRICE_HONSHITSU,
+  kotoshi:   process.env.STRIPE_PRICE_KOTOSHI,
 };
 
 const LABEL_MAP = {
@@ -13,6 +14,7 @@ const LABEL_MAP = {
   shigoto:   '仕事',
   zaiu:      '財運',
   honshitsu: '本質と対人',
+  kotoshi:   '今年の運勢',
 };
 
 async function createCheckoutSession(lineUserId, fortuneType, userName, birthDate) {
