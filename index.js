@@ -6,6 +6,8 @@ const { parseUserInput }                          = require('./utils/parser');
 const { formatFortuneResult,
         formatPaidIntroMessage,
         formatPaymentMessage,
+        formatAboutMessage,
+        formatHowtoMessage,
         formatErrorMessage,
         getWelcomeMessage }                        = require('./utils/formatter');
 const { generateCompleteFortune }                 = require('./services/fortune');
@@ -44,8 +46,12 @@ app.post(
 
 // ─── キーワード定義 ──────────────────────────────────────────
 const HELP_KEYWORDS    = ['ヘルプ', 'help', '?', 'start'];
-const PAID_KEYWORDS    = ['続きを知りたい', '詳しく知りたい', '有料版'];
+const PAID_KEYWORDS    = ['続きを知りたい', '詳しく知りたい', '詳しくを知りたい', '有料版'];
 const PAYMENT_KEYWORDS = ['鑑定希望', '申込', '購入'];
+const MENU_FREE_KEYWORDS  = ['無料鑑定'];
+const MENU_PAID_KEYWORDS  = ['有料鑑定'];
+const MENU_ABOUT_KEYWORDS = ['月読み診断とは'];
+const MENU_HOWTO_KEYWORDS = ['使い方'];
 
 // ─── メッセージ処理 ──────────────────────────────────────────
 async function handleMessage(event) {
@@ -57,6 +63,26 @@ async function handleMessage(event) {
   // ── ヘルプ ────────────────────────────────────────────────
   if (HELP_KEYWORDS.includes(text.toLowerCase())) {
     return reply(replyToken, getWelcomeMessage());
+  }
+
+  // ── リッチメニュー: 無料鑑定 ──────────────────────────────
+  if (MENU_FREE_KEYWORDS.includes(text)) {
+    return reply(replyToken, getWelcomeMessage());
+  }
+
+  // ── リッチメニュー: 有料鑑定 ──────────────────────────────
+  if (MENU_PAID_KEYWORDS.includes(text)) {
+    return reply(replyToken, formatPaidIntroMessage());
+  }
+
+  // ── リッチメニュー: 月読み診断とは ───────────────────────
+  if (MENU_ABOUT_KEYWORDS.includes(text)) {
+    return reply(replyToken, formatAboutMessage());
+  }
+
+  // ── リッチメニュー: 使い方 ────────────────────────────────
+  if (MENU_HOWTO_KEYWORDS.includes(text)) {
+    return reply(replyToken, formatHowtoMessage());
   }
 
   // ── 有料版案内 ────────────────────────────────────────────
