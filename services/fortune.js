@@ -213,4 +213,69 @@ function fallbackText(name, calc, sureiNumber) {
   return `${name}さんは${element}の気質を持ち、日柱の十二運星は「${junishi.day}」。年柱との関係は「${tsuhen.year}」を示します。数霊${sureiNumber}番の力が人生に方向性を与え、今後の歩みを力強く支えるでしょう。`;
 }
 
-module.exports = { generateCompleteFortune };
+// ─── 有料版 system プロンプト ─────────────────────────────────────
+
+const PAID_PROMPTS = {
+  renai: `渡された命式・数霊データをもとに、この人の恋愛傾向・求める愛の形・
+パートナーシップのパターン・縁が動きやすい時期について400〜500文字で鑑定してください。
+温かく寄り添うトーンで、です・ます調で書いてください。
+記号・箇条書き・見出しは使わず、ひと続きの文章で。`,
+
+  shigoto: `渡された命式・数霊データをもとに、この人の仕事における才能・
+向いている分野・転機のサイン・財運の流れについて400〜500文字で鑑定してください。
+温かく寄り添うトーンで、です・ます調で書いてください。
+記号・箇条書き・見出しは使わず、ひと続きの文章で。`,
+
+  zaiu: `渡された命式・数霊データをもとに、この人のお金との向き合い方・
+財運の特徴・豊かさを引き寄せるための心がけについて400〜500文字で鑑定してください。
+温かく寄り添うトーンで、です・ます調で書いてください。
+記号・箇条書き・見出しは使わず、ひと続きの文章で。`,
+
+  honshitsu: `渡された命式・数霊データをもとに、この人の隠れた本質・
+深い縁を結びやすい人のタイプ・人間関係での強みと課題について400〜500文字で鑑定してください。
+温かく寄り添うトーンで、です・ます調で書いてください。
+記号・箇条書き・見出しは使わず、ひと続きの文章で。`,
+};
+
+// ─── 有料版鑑定生成 ───────────────────────────────────────────────
+
+async function generatePaidFortune(name, date, fortuneType) {
+  try {
+    const calc = calcAll(name, date);
+    const { yearPillar, monthPillar, dayPillar, tsuhen, junishi, element, sureiNumber, age } = calc;
+
+    const sureiMeaning = await getSureiMeaning(sureiNumber);
+
+    const structuredData = `
+【鑑定対象】${name}（${date}生まれ・${age}歳）
+
+【四柱推命】
+・年柱: ${yearPillar.display}（通変星: ${tsuhen.year}／十二運星: ${junishi.year}）
+・月柱: ${monthPillar.display}（通変星: ${tsuhen.month}／十二運星: ${junishi.month}）
+・日柱（日主）: ${dayPillar.display}（十二運星: ${junishi.day}）
+・主五行: ${element}
+
+【数霊】
+・数霊数: ${sureiNumber}
+・意味: ${sureiMeaning}
+`.trim();
+
+    if (!anthropic) {
+      return { text: fallbackText(name, calc, sureiNumber), error: null };
+    }
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      system: PAID_PROMPTS[fortuneType] ?? PAID_PROMPTS.honshitsu,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+
+    return { text: message.content[0]?.text ?? fallbackText(name, calc, sureiNumber), error: null };
+  } catch (error) {
+    console.error('Paid fortune generation error:', error);
+    return { text: null, error: '有料鑑定の生成に失敗しました。しばらくしてからお試しください。' };
+  }
+}
+
+module.exports = { generateCompleteFortune, generatePaidFortune };
