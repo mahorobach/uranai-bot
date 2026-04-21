@@ -130,7 +130,7 @@ const PAID_FLEX_MESSAGE = {
         { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💕 恋愛',            text: '鑑定:恋愛' }},
         { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💼 仕事',            text: '鑑定:仕事' }},
         { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💰 財運',            text: '鑑定:財運' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '📅 今年の運勢 1,500円', text: '鑑定:今年の運勢' }},
+        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '📅 今年の運勢', text: '鑑定:今年の運勢' }},
       ],
     },
   },
