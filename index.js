@@ -91,7 +91,7 @@ const FORTUNE_TYPE_MAP = {
   '鑑定:恋愛':     'renai',
   '鑑定:仕事':     'shigoto',
   '鑑定:財運':     'zaiu',
-  '鑑定:本質と対人': 'honshitsu',
+  '鑑定:今年の運勢': 'kotoshi',
 };
 
 // ─── LINE Flex Message: 鑑定タイプ選択 ──────────────────────
@@ -127,10 +127,10 @@ const PAID_FLEX_MESSAGE = {
       layout: 'vertical',
       spacing: 'sm',
       contents: [
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💕 恋愛',      text: '鑑定:恋愛' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💼 仕事',      text: '鑑定:仕事' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💰 財運',      text: '鑑定:財運' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '🌟 本質と対人', text: '鑑定:本質と対人' }},
+        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💕 恋愛',            text: '鑑定:恋愛' }},
+        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💼 仕事',            text: '鑑定:仕事' }},
+        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💰 財運',            text: '鑑定:財運' }},
+        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '📅 今年の運勢 1,500円', text: '鑑定:今年の運勢' }},
       ],
     },
   },
