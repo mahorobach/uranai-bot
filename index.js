@@ -1,7 +1,8 @@
 require('dotenv').config();
-const express = require('express');
-const line    = require('@line/bot-sdk');
-const stripe  = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const express  = require('express');
+const line     = require('@line/bot-sdk');
+const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const supabase = require('./config/supabase');
 
 const { parseUserInput }                          = require('./utils/parser');
 const { formatFortuneResult,
@@ -25,9 +26,6 @@ const lineConfig = {
 const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
-
-// ─── ユーザーの直近占い結果を記憶（lineUserId → { name, date }）
-const userFortuneMap = new Map();
 
 // ─── Express ────────────────────────────────────────────────
 const app = express();
@@ -78,63 +76,130 @@ app.post(
 );
 
 // ─── キーワード定義 ──────────────────────────────────────────
-const HELP_KEYWORDS    = ['ヘルプ', 'help', '?', 'start'];
-const PAID_KEYWORDS    = ['続きを知りたい', '詳しく知りたい', '詳しくを知りたい', '有料版'];
-const PAYMENT_KEYWORDS = ['鑑定希望', '申込', '購入'];
+const HELP_KEYWORDS       = ['ヘルプ', 'help', '?', 'start'];
+const PAID_KEYWORDS       = ['続きを知りたい', '詳しく知りたい', '詳しくを知りたい', '有料版'];
+const PAYMENT_KEYWORDS    = ['鑑定希望', '申込', '購入'];
 const MENU_FREE_KEYWORDS  = ['無料鑑定'];
 const MENU_PAID_KEYWORDS  = ['有料鑑定'];
 const MENU_ABOUT_KEYWORDS = ['月読み診断とは'];
 const MENU_HOWTO_KEYWORDS = ['使い方'];
 
-// 「鑑定:〇〇」テキスト → fortuneType のマップ
-const FORTUNE_TYPE_MAP = {
-  '鑑定:恋愛':     'renai',
-  '鑑定:仕事':     'shigoto',
-  '鑑定:財運':     'zaiu',
-  '鑑定:今年の運勢': 'kotoshi',
-};
+// ─── Supabase から占い履歴を全件取得 ─────────────────────────
+async function getAllFortunes(lineUserId) {
+  if (!supabase) return [];
+  try {
+    const { data } = await supabase
+      .from('fortune_cache')
+      .select('name, date')
+      .eq('line_user_id', lineUserId)
+      .order('created_at', { ascending: false });
+    const seen = new Set();
+    return (data || []).filter(row => {
+      const key = `${row.name}_${row.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
 
-// ─── LINE Flex Message: 鑑定タイプ選択 ──────────────────────
-const PAID_FLEX_MESSAGE = {
-  type: 'flex',
-  altText: '月読み占い｜鑑定タイプを選んでください',
-  contents: {
-    type: 'bubble',
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      contents: [{
-        type: 'text',
-        text: '🔮 月読み占い',
-        weight: 'bold',
-        size: 'xl',
-        color: '#ffffff',
-      }],
-      backgroundColor: '#6B3FA0',
+// ─── 人物選択 Flex メッセージ ────────────────────────────────
+function buildPersonSelectMessage(persons) {
+  return {
+    type: 'flex',
+    altText: '鑑定する方を選んでください',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{
+          type: 'text',
+          text: '🔮 月読み占い',
+          weight: 'bold',
+          size: 'xl',
+          color: '#ffffff',
+        }],
+        backgroundColor: '#6B3FA0',
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: '👤 鑑定する方を選んでください', wrap: true, weight: 'bold' },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: persons.map(p => ({
+          type: 'button',
+          style: 'secondary',
+          action: {
+            type: 'message',
+            label: `${p.name}（${p.date}）`,
+            text: `鑑定対象:${p.name}:${p.date}`,
+          },
+        })),
+      },
     },
-    body: {
-      type: 'box',
-      layout: 'vertical',
-      spacing: 'md',
-      contents: [
-        { type: 'text', text: '鑑定タイプを選んでください', wrap: true },
-        { type: 'text', text: '恋愛・仕事・財運：各1,000円（税込）', size: 'sm', color: '#888888' },
-        { type: 'text', text: '今年の運勢：1,500円（税込）', size: 'sm', color: '#888888' },
-      ],
+  };
+}
+
+// ─── 決済ボタン Flex メッセージ ──────────────────────────────
+async function buildPaymentMessage(lineUserId, name, date) {
+  const [urlRenai, urlShigoto, urlZaiu, urlKotoshi] = await Promise.all([
+    createCheckoutSession(lineUserId, 'renai',    name, date),
+    createCheckoutSession(lineUserId, 'shigoto',  name, date),
+    createCheckoutSession(lineUserId, 'zaiu',     name, date),
+    createCheckoutSession(lineUserId, 'kotoshi',  name, date),
+  ]);
+
+  return {
+    type: 'flex',
+    altText: '月読み占い｜鑑定タイプを選んでください',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{
+          type: 'text',
+          text: '🔮 月読み占い',
+          weight: 'bold',
+          size: 'xl',
+          color: '#ffffff',
+        }],
+        backgroundColor: '#6B3FA0',
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: `${name}さんの鑑定タイプを選んでください`, wrap: true },
+          { type: 'text', text: '恋愛・仕事・財運：各1,000円（税込）', size: 'sm', color: '#888888' },
+          { type: 'text', text: '今年の運勢：1,500円（税込）', size: 'sm', color: '#888888' },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💕 恋愛',        uri: urlRenai   }},
+          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💼 仕事',        uri: urlShigoto }},
+          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '💰 財運',        uri: urlZaiu    }},
+          { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'uri', label: '📅 今年の運勢',  uri: urlKotoshi }},
+        ],
+      },
     },
-    footer: {
-      type: 'box',
-      layout: 'vertical',
-      spacing: 'sm',
-      contents: [
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💕 恋愛',            text: '鑑定:恋愛' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💼 仕事',            text: '鑑定:仕事' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '💰 財運',            text: '鑑定:財運' }},
-        { type: 'button', style: 'primary', color: '#6B3FA0', action: { type: 'message', label: '📅 今年の運勢', text: '鑑定:今年の運勢' }},
-      ],
-    },
-  },
-};
+  };
+}
 
 // ─── メッセージ処理 ──────────────────────────────────────────
 async function handleMessage(event) {
@@ -154,12 +219,6 @@ async function handleMessage(event) {
     return reply(replyToken, getWelcomeMessage());
   }
 
-  // ── リッチメニュー / キーワード: 有料鑑定案内（Flex） ─────
-  if (MENU_PAID_KEYWORDS.includes(text) || PAID_KEYWORDS.includes(text)) {
-    console.log('有料鑑定 Flex メッセージを返送');
-    return reply(replyToken, PAID_FLEX_MESSAGE);
-  }
-
   // ── リッチメニュー: 月読み診断とは ───────────────────────
   if (MENU_ABOUT_KEYWORDS.includes(text)) {
     return reply(replyToken, formatAboutMessage());
@@ -175,31 +234,32 @@ async function handleMessage(event) {
     return reply(replyToken, formatPaymentMessage());
   }
 
-  // ── 鑑定タイプ選択（Flex ボタン押下） ────────────────────
-  if (FORTUNE_TYPE_MAP[text]) {
-    const fortuneType = FORTUNE_TYPE_MAP[text];
-    const label       = LABEL_MAP[fortuneType];
-    const saved       = userFortuneMap.get(lineUserId);
+  // ── 有料鑑定ボタン押下 ────────────────────────────────────
+  if (MENU_PAID_KEYWORDS.includes(text) || PAID_KEYWORDS.includes(text)) {
+    const fortunes = await getAllFortunes(lineUserId);
 
-    if (!saved) {
-      return reply(replyToken, formatErrorMessage(
-        '先にお名前と生年月日で無料鑑定を受けてからお選びください。\n例：田中花子 1990-05-15',
-      ));
-    }
-
-    console.log(`決済URL生成: ${label} / ${saved.name} / ${saved.date}`);
-    try {
-      const url = await createCheckoutSession(
-        lineUserId, fortuneType, saved.name, saved.date,
-      );
+    if (fortunes.length === 0) {
       return reply(replyToken, {
         type: 'text',
-        text: `💳 ${label}鑑定のお支払いページです。\n決済完了後、自動で鑑定結果をお送りします。\n▶ ${url}`,
+        text: '🔮 月読み占いへようこそ！\n\nまず無料鑑定を受けてください。\nお名前と生年月日をスペースで区切って送ってください。\n\n例：田中花子 1990-05-15',
       });
-    } catch (err) {
-      console.error('Stripe セッション作成エラー:', err.message);
-      return reply(replyToken, formatErrorMessage('決済ページの生成に失敗しました。しばらくしてからお試しください。'));
     }
+
+    if (fortunes.length === 1) {
+      const msg = await buildPaymentMessage(lineUserId, fortunes[0].name, fortunes[0].date);
+      return reply(replyToken, msg);
+    }
+
+    return reply(replyToken, buildPersonSelectMessage(fortunes));
+  }
+
+  // ── 人物選択後 ────────────────────────────────────────────
+  if (text.startsWith('鑑定対象:')) {
+    const parts = text.split(':');
+    const name  = parts[1];
+    const date  = parts[2];
+    const msg   = await buildPaymentMessage(lineUserId, name, date);
+    return reply(replyToken, msg);
   }
 
   // ── 占いリクエスト（氏名 + 生年月日） ─────────────────────
@@ -213,13 +273,17 @@ async function handleMessage(event) {
   const { name, date } = parsed;
   console.log(`鑑定対象: ${name} / ${date}`);
 
-  // 次の有料鑑定のために記憶
-  userFortuneMap.set(lineUserId, { name, date });
-
   // キャッシュ確認
   const cached = await getFromCache(name, date);
   if (cached) {
     console.log('⚡ キャッシュから返却');
+    // line_user_id を紐付けて履歴に残す
+    if (supabase) {
+      await supabase.from('fortune_cache')
+        .update({ line_user_id: lineUserId })
+        .eq('name', name)
+        .eq('date', date);
+    }
     return reply(replyToken, formatFortuneResult(cached));
   }
 
@@ -231,7 +295,7 @@ async function handleMessage(event) {
     return reply(replyToken, formatErrorMessage(fortune.error));
   }
 
-  await saveToCache(fortune);
+  await saveToCache(fortune, lineUserId);
   console.log('✅ キャッシュ保存完了');
 
   return reply(replyToken, formatFortuneResult(fortune));

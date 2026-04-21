@@ -43,7 +43,7 @@ async function getFromCache(name, date) {
   }
 }
 
-async function saveToCache(fortuneData) {
+async function saveToCache(fortuneData, lineUserId = null) {
   if (!supabase) return false;
   try {
     const { name, date, fortune, metadata } = fortuneData;
@@ -63,6 +63,7 @@ async function saveToCache(fortuneData) {
       junishi_month:     m.junishi_month,
       junishi_day:       m.junishi_day,
       surei_number:      m.surei_number,
+      line_user_id:      lineUserId,
       created_at:        new Date().toISOString(),
     }]);
 
