@@ -23,8 +23,8 @@ async function createCheckoutSession(lineUserId, fortuneType, userName, birthDat
       quantity: 1,
     }],
     mode: 'payment',
-    success_url: 'https://line.me/R/ti/p/@（自分のLINE BotのID）',
-    cancel_url:  'https://line.me/R/ti/p/@（自分のLINE BotのID）',
+    success_url: 'https://line.me/R/ti/p/@776zhkvc',
+    cancel_url:  'https://line.me/R/ti/p/@776zhkvc',
     metadata: {
       lineUserId,
       fortuneType,
