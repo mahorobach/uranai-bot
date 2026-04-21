@@ -223,8 +223,8 @@ async function handleMessage(event) {
     return reply(replyToken, formatFortuneResult(cached));
   }
 
-  // Claude API で鑑定生成
-  console.log('📡 Claude API で鑑定生成中...');
+  // 鑑定生成
+  console.log('📡 鑑定生成中...');
   const fortune = await generateCompleteFortune(name, date);
 
   if (fortune.error) {

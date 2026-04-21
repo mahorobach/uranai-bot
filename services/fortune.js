@@ -1,6 +1,6 @@
 /**
  * 占いサービス
- * フロー: ローカル計算 → DBから意味を取得 → Claudeに渡して200字要約 → 返却
+ * フロー: ローカル計算 → DBから意味を取得 → 鑑定文生成 → 返却
  */
 const anthropic = require('../config/claude');
 const supabase  = require('../config/supabase');
@@ -119,7 +119,7 @@ async function generateCompleteFortune(name, date) {
     // 2. 数霊の意味をDBから取得
     const sureiMeaning = await getSureiMeaning(sureiNumber);
 
-    // 3. Claudeへ渡す構造化データを構築
+    // 3. 構造化データを構築
     const structuredData = `
 【鑑定対象】${name}（${date}生まれ・${age}歳）
 
@@ -134,7 +134,7 @@ async function generateCompleteFortune(name, date) {
 ・意味: ${sureiMeaning}
 `.trim();
 
-    // 4. Claude API: 構造化データを渡して200字の無料版要約を生成
+    // 4. 構造化データを渡して無料版鑑定文を生成
     if (!anthropic) {
       return buildResult(name, date, age, calc, sureiNumber, sureiMeaning, fallbackText(name, calc, sureiNumber));
     }
