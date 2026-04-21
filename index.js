@@ -27,6 +27,9 @@ const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
+// ─── ユーザーの直近占い結果をメモリで記憶（フォールバック用）
+const userFortuneMap = new Map();
+
 // ─── Express ────────────────────────────────────────────────
 const app = express();
 
@@ -236,7 +239,15 @@ async function handleMessage(event) {
 
   // ── 有料鑑定ボタン押下 ────────────────────────────────────
   if (MENU_PAID_KEYWORDS.includes(text) || PAID_KEYWORDS.includes(text)) {
-    const fortunes = await getAllFortunes(lineUserId);
+    let fortunes = await getAllFortunes(lineUserId);
+
+    // DB に line_user_id が未登録の場合はメモリから補完
+    if (fortunes.length === 0) {
+      const saved = userFortuneMap.get(lineUserId);
+      if (saved) {
+        fortunes = [{ name: saved.name, date: saved.date }];
+      }
+    }
 
     if (fortunes.length === 0) {
       return reply(replyToken, {
@@ -272,6 +283,9 @@ async function handleMessage(event) {
 
   const { name, date } = parsed;
   console.log(`鑑定対象: ${name} / ${date}`);
+
+  // メモリに記憶（フォールバック用）
+  userFortuneMap.set(lineUserId, { name, date });
 
   // キャッシュ確認
   const cached = await getFromCache(name, date);
