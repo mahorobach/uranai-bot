@@ -84,4 +84,13 @@ function getInitialMessage() {
   return formatter.getWelcomeMessage().text;
 }
 
-module.exports = { parseUserInput, normalizeDate, getInitialMessage };
+function isThankYouMessage(text) {
+  const THANK_KEYWORDS = [
+    'ありがとう', '感動', '感謝', 'すごい', 'すごかった',
+    '嬉しい', 'うれしい', 'よかった', '良かった',
+    '素晴らしい', 'すばらしい', '最高', '感激', '泣ける', '泣いた',
+  ];
+  return THANK_KEYWORDS.some(keyword => text.includes(keyword));
+}
+
+module.exports = { parseUserInput, normalizeDate, getInitialMessage, isThankYouMessage };

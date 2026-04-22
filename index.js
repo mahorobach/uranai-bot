@@ -4,7 +4,7 @@ const line     = require('@line/bot-sdk');
 const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const supabase = require('./config/supabase');
 
-const { parseUserInput }                          = require('./utils/parser');
+const { parseUserInput, isThankYouMessage }        = require('./utils/parser');
 const { formatFortuneResult,
         formatPaidIntroMessage,
         formatPaymentMessage,
@@ -282,6 +282,14 @@ async function handleMessage(event) {
     const date  = parts[2];
     const msg   = await buildPaymentMessage(lineUserId, name, date);
     return reply(replyToken, msg);
+  }
+
+  // ── 感謝・感動メッセージ ──────────────────────────────────
+  if (isThankYouMessage(text)) {
+    return reply(replyToken, {
+      type: 'text',
+      text: '嬉しいお言葉をありがとうございます✨\n\nあなたの人生の道筋を照らせて光栄です🔮\n\nまたいつでもお気軽にどうぞ。\n引き続きご利用の際は、お名前と生年月日をお送りください。\n\n例）田中花子 1990-05-15',
+    });
   }
 
   // ── 占いリクエスト（氏名 + 生年月日） ─────────────────────
