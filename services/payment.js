@@ -13,7 +13,7 @@ const LABEL_MAP = {
   renai:   '恋愛鑑定',
   shigoto: '仕事鑑定',
   zaiu:    '財運鑑定',
-  kotoshi: '今年の運勢',
+  kotoshi: '時の運',
   sekkei:  '人生の設計図',
 };
 

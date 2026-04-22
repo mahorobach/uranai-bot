@@ -13,7 +13,8 @@ const { formatFortuneResult,
         formatErrorMessage,
         getWelcomeMessage }                        = require('./utils/formatter');
 const { generateCompleteFortune,
-        generatePaidFortune }                      = require('./services/fortune');
+        generatePaidFortune,
+        generateSekkei }                           = require('./services/fortune');
 const { getFromCache, saveToCache }               = require('./services/cache');
 const { createCheckoutSession, LABEL_MAP }        = require('./services/payment');
 
@@ -191,7 +192,7 @@ async function buildPaymentMessage(lineUserId, name, date) {
           { type: 'text', text: '💕 恋愛｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
           { type: 'text', text: '💼 仕事｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
           { type: 'text', text: '💰 財運｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
-          { type: 'text', text: '📅 今年の運勢｜約600文字　1,500円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '📅 時の運｜約600文字　1,500円（税込）', size: 'sm', color: '#555555' },
           { type: 'separator', margin: 'md' },
           { type: 'text', text: '【人生の設計図】', size: 'sm', weight: 'bold', color: '#6B3FA0', margin: 'md' },
           { type: 'text', text: '🌙 約3,500文字・5つの本格鑑定　2,980円（税込）', size: 'sm', color: '#555555', wrap: true },
@@ -205,7 +206,7 @@ async function buildPaymentMessage(lineUserId, name, date) {
           { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💕 恋愛　880円',        uri: urlRenai   }},
           { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💼 仕事　880円',        uri: urlShigoto }},
           { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💰 財運　880円',        uri: urlZaiu    }},
-          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '📅 今年の運勢　1,500円', uri: urlKotoshi }},
+          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '📅 時の運　1,500円', uri: urlKotoshi }},
           { type: 'button', style: 'secondary', color: '#3D1A6E', action: { type: 'uri', label: '🌙 人生の設計図　2,980円', uri: urlSekkei }},
         ],
       },
@@ -328,6 +329,44 @@ async function handleMessage(event) {
 async function handlePaidFortune(lineUserId, fortuneType, userName, birthDate) {
   console.log(`有料鑑定生成: ${LABEL_MAP[fortuneType]} / ${userName} / ${birthDate}`);
 
+  // ── 人生の設計図 ──────────────────────────────────────────
+  if (fortuneType === 'sekkei') {
+    const result = await generateSekkei(userName, birthDate);
+
+    if (result.error) {
+      await lineClient.pushMessage({
+        to: lineUserId,
+        messages: [{ type: 'text', text: `❌ ${result.error}` }],
+      });
+      return;
+    }
+
+    await lineClient.pushMessage({
+      to: lineUserId,
+      messages: [{ type: 'text', text: `🌙 ${result.name}さんの人生の設計図\n\n${result.monogatari}` }],
+    });
+    await lineClient.pushMessage({
+      to: lineUserId,
+      messages: [{ type: 'text', text: `💕 恋愛鑑定\n\n${result.renai}` }],
+    });
+    await lineClient.pushMessage({
+      to: lineUserId,
+      messages: [{ type: 'text', text: `💼 仕事鑑定\n\n${result.shigoto}` }],
+    });
+    await lineClient.pushMessage({
+      to: lineUserId,
+      messages: [{ type: 'text', text: `💰 財運鑑定\n\n${result.zaiu}` }],
+    });
+    await lineClient.pushMessage({
+      to: lineUserId,
+      messages: [{ type: 'text', text: `📅 時の運\n\n${result.kotoshi}` }],
+    });
+
+    console.log(`✅ 人生の設計図送信完了: ${lineUserId}`);
+    return;
+  }
+
+  // ── 単品鑑定 ─────────────────────────────────────────────
   const result = await generatePaidFortune(userName, birthDate, fortuneType);
 
   if (result.error) {

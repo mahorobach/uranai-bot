@@ -352,4 +352,209 @@ async function generatePaidFortune(name, date, fortuneType) {
   }
 }
 
-module.exports = { generateCompleteFortune, generatePaidFortune };
+// ─── 人生の設計図（sekkei）生成 ──────────────────────────────────
+
+async function generateSekkei(name, date) {
+  try {
+    const calc = calcAll(name, date);
+    const { yearPillar, monthPillar, dayPillar,
+            tsuhen, junishi, element, sureiNumber, age } = calc;
+    const sureiMeaning = await getSureiMeaning(sureiNumber);
+
+    const structuredData = `
+【鑑定対象】${name}（${date}生まれ・${age}歳）
+
+【四柱推命】
+・年柱: ${yearPillar.display}（通変星: ${tsuhen.year}／十二運星: ${junishi.year}）
+・月柱: ${monthPillar.display}（通変星: ${tsuhen.month}／十二運星: ${junishi.month}）
+・日柱（日主）: ${dayPillar.display}（十二運星: ${junishi.day}）
+・主五行: ${element}
+
+【数霊】
+・数霊数: ${sureiNumber}
+・意味: ${sureiMeaning}
+`.trim();
+
+    // 1. 人生のテーマ生成
+    const themeMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 100,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+渡された命式・五行・数霊データをもとに、
+この人の人生のテーマを10文字以内で言い切ってください。
+テーマのみを出力してください。余分な説明は不要です。`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const theme = themeMessage.content[0]?.text?.trim() ?? '';
+
+    // 2. 恋愛鑑定生成
+    const renaiMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+訪れる人は皆、何かに悩み、迷い、それでも前へ進もうとしている方々です。
+渡された命式・五行・数霊データをもとに、この人の恋愛鑑定を書いてください。
+無料鑑定より深く、具体的に、より寄り添った内容にしてください。
+
+【必ず含める内容】
+・冒頭に「あなたの恋愛における本質は〜」という切り口で始める
+・この人が無意識に求めているパートナー像
+・愛情表現のパターンと、相手に誤解されやすい点
+・深い縁を結びやすい相手のタイプ
+・縁が動きやすい時期・きっかけ
+・今のあなたへの恋愛メッセージ
+
+【ルール】
+・600〜700文字、です・ます調
+・記号・箇条書き・見出し・#・*は使わない
+・ひと続きの読み物として書く
+・月の光のように優しく包み込むトーンで`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const renaiText = renaiMessage.content[0]?.text?.trim() ?? '';
+
+    // 3. 仕事鑑定生成
+    const shigotoMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+訪れる人は皆、何かに悩み、迷い、それでも前へ進もうとしている方々です。
+渡された命式・五行・数霊データをもとに、この人の仕事鑑定を書いてください。
+無料鑑定より深く、具体的に、より寄り添った内容にしてください。
+
+【必ず含める内容】
+・冒頭に「あなたが最も力を発揮できる舞台は〜」という切り口で始める
+・天職・向いている仕事環境の特徴
+・仕事における行動パターンと強み
+・チームの中での役割・立ち位置
+・転機のサインと、次のステージへのヒント
+・今のあなたへの仕事メッセージ
+
+【ルール】
+・600〜700文字、です・ます調
+・記号・箇条書き・見出し・#・*は使わない
+・ひと続きの読み物として書く
+・月の光のように優しく包み込むトーンで`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const shigotoText = shigotoMessage.content[0]?.text?.trim() ?? '';
+
+    // 4. 財運鑑定生成
+    const zaiuMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+訪れる人は皆、何かに悩み、迷い、それでも前へ進もうとしている方々です。
+渡された命式・五行・数霊データをもとに、この人の財運鑑定を書いてください。
+無料鑑定より深く、具体的に、より寄り添った内容にしてください。
+
+【必ず含める内容】
+・冒頭に「あなたとお金の関係を一言で表すなら〜」という切り口で始める
+・この人固有のお金の引き寄せ方のパターン
+・お金が貯まりやすい時期・逃げやすい時期の傾向
+・財運を高めるための具体的な心がけ・行動
+・やってはいけないお金の使い方
+・今のあなたへの財運メッセージ
+
+【ルール】
+・600〜700文字、です・ます調
+・記号・箇条書き・見出しは使わない
+・ひと続きの読み物として書く
+・月の光のように優しく包み込むトーンで`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const zaiuText = zaiuMessage.content[0]?.text?.trim() ?? '';
+
+    // 5. 時の運生成
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const nextYear = year + 1;
+
+    let period, opening, periodDetail;
+    if (month <= 4) {
+      period       = `${year}年1月〜12月`;
+      opening      = `${year}年のあなたのテーマは`;
+      periodDetail = `${year}年全体の運勢を鑑定してください。`;
+    } else if (month <= 9) {
+      period       = `${year}年${month}月〜${nextYear}年${month}月`;
+      opening      = `これからの一年、あなたのテーマは`;
+      periodDetail = `${year}年${month}月から${nextYear}年${month}月までの一年間の運勢を鑑定してください。`;
+    } else {
+      period       = `${nextYear}年1月〜12月`;
+      opening      = `来年${nextYear}年に向けて、あなたのテーマは`;
+      periodDetail = `来年${nextYear}年全体の運勢を鑑定してください。`;
+    }
+
+    const kotoshiMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+訪れる人は皆、何かに悩み、迷い、それでも前へ進もうとしている方々です。
+渡された命式・五行・数霊データをもとに、${periodDetail}
+無料鑑定より深く、具体的に、より寄り添った内容にしてください。
+
+【鑑定対象期間】${period}
+
+【必ず含める内容】
+・冒頭は必ず「${opening}〜」という書き出しで始める
+・対象期間全体の運気の流れとテーマ
+・この時期に特に意識すべきこと・チャンスが来る分野
+・対人関係・仕事・恋愛のうち最も動きやすい分野を具体的に
+・この時期にやっておくべき具体的な行動
+・最後に温かい締めくくりのメッセージ
+
+【ルール】
+・600〜700文字、です・ます調
+・記号・箇条書き・見出しは使わない
+・ひと続きの読み物として書く
+・月の光のように優しく包み込むトーンで`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const kotoshiText = kotoshiMessage.content[0]?.text?.trim() ?? '';
+
+    // 6. 人生のテーマの物語生成
+    const monogatariMessage = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1200,
+      system: `あなたは月の光のように優しく人に寄り添う占い師です。
+渡された命式・五行・数霊データをもとに、
+この人の人生を一つの物語として紡いでください。
+
+【構成】
+・冒頭：「${name}さんの人生のテーマは「${theme}」です。」
+  という一行で始める
+・その後、このテーマがどういう意味を持つか、
+  これまでの人生でどう現れてきたか、
+  これからどう生きていくかを
+  月明かりのように優しく照らす言葉で描く
+
+【ルール】
+・600〜700文字、です・ます調
+・記号・箇条書き・見出しは使わない
+・ひと続きの物語として書く
+・月の光のように優しく、温かく、包み込むトーンで
+・読んだ人が「これは私の物語だ」と感じる内容に`,
+      messages: [{ role: 'user', content: structuredData }],
+    });
+    const monogatariText = monogatariMessage.content[0]?.text?.trim() ?? '';
+
+    return {
+      name,
+      date,
+      age,
+      theme,
+      renai:      renaiText,
+      shigoto:    shigotoText,
+      zaiu:       zaiuText,
+      kotoshi:    kotoshiText,
+      monogatari: monogatariText,
+    };
+
+  } catch (error) {
+    console.error('Sekkei generation error:', error);
+    return { error: '人生の設計図の生成に失敗しました。しばらくしてからお試しください。' };
+  }
+}
+
+module.exports = { generateCompleteFortune, generatePaidFortune, generateSekkei };
