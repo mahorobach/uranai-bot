@@ -155,3 +155,13 @@ INSERT INTO surei_meanings (number, meaning) VALUES
 (80, '安定と完成。長年の努力が安定した基盤を生み、人生の完成形に近づいていく。'),
 (81, '最高位と循環。81は最大数であり1に還る。天と地の循環を体現する吉祥数。')
 ON CONFLICT (number) DO NOTHING;
+
+-- ─── X投稿履歴テーブル ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS x_posts (
+  id          BIGSERIAL PRIMARY KEY,
+  content     TEXT NOT NULL,
+  posted_at   TIMESTAMP DEFAULT NOW(),
+  day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  theme       VARCHAR(255)
+);
+CREATE INDEX IF NOT EXISTS idx_x_posts_posted_at ON x_posts(posted_at);

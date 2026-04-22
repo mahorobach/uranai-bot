@@ -17,6 +17,7 @@ const { generateCompleteFortune,
         generateSekkei }                           = require('./services/fortune');
 const { getFromCache, saveToCache }               = require('./services/cache');
 const { createCheckoutSession, LABEL_MAP }        = require('./services/payment');
+const { startDailyPostJob }                       = require('./jobs/daily-post');
 
 // ─── LINE 設定 ──────────────────────────────────────────────
 const lineConfig = {
@@ -399,6 +400,7 @@ function reply(replyToken, message) {
 
 // ─── 起動 ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`🔮 月読みの導き 起動 → port:${PORT}`),
-);
+app.listen(PORT, () => {
+  console.log(`🔮 月読みの導き 起動 → port:${PORT}`);
+  startDailyPostJob();
+});

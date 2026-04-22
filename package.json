@@ -26,7 +26,9 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "firebase-admin": "^12.0.0",
+    "node-cron": "^4.2.1",
     "stripe": "^14.25.0",
+    "twitter-api-v2": "^1.29.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
