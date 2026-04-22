@@ -284,6 +284,14 @@ async function handleMessage(event) {
     return reply(replyToken, msg);
   }
 
+  // ── 個別トーク（1対1）への返信 ───────────────────────────
+  if (event.source.type === 'user') {
+    return reply(replyToken, {
+      type: 'text',
+      text: '個別でのお返事は行なっておりません🙏\nご了承ください。\n\n占いをご利用の際は、お名前と生年月日をお送りください。\n例）田中花子 1990-05-15',
+    });
+  }
+
   // ── 感謝・感動メッセージ ──────────────────────────────────
   if (isThankYouMessage(text)) {
     return reply(replyToken, {
