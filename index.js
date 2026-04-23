@@ -287,14 +287,6 @@ async function handleMessage(event) {
     return reply(replyToken, msg);
   }
 
-  // ── 個別トーク（1対1）への返信 ───────────────────────────
-  if (event.source.type === 'user') {
-    return reply(replyToken, {
-      type: 'text',
-      text: '個別でのお返事は行なっておりません🙏\nご了承ください。\n\n占いをご利用の際は、お名前と生年月日をお送りください。\n例）田中花子 1990-05-15',
-    });
-  }
-
   // ── 手動画数の受け取り（数字のみ送信 + 待ちユーザー） ───────
   if (/^\d+$/.test(text) && pendingUsers[lineUserId]) {
     const manualStrokes = parseInt(text, 10);
@@ -315,7 +307,13 @@ async function handleMessage(event) {
   if (isThankYouMessage(text)) {
     return reply(replyToken, {
       type: 'text',
-      text: '嬉しいお言葉をありがとうございます✨\n\nあなたの人生の道筋を照らせて光栄です🔮\n\nまたいつでもお気軽にどうぞ。\n引き続きご利用の際は、お名前と生年月日をお送りください。\n\n例）田中花子 1990-05-15',
+      text: [
+        '🌙 ありがとうございます。',
+        '',
+        'またいつでもお声がけください。',
+        'お名前と生年月日をお送りいただければ',
+        '鑑定いたします。',
+      ].join('\n'),
     });
   }
 
