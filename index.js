@@ -32,6 +32,9 @@ const lineClient = new line.messagingApi.MessagingApiClient({
 // ─── ユーザーの直近占い結果をメモリで記憶（フォールバック用）
 const userFortuneMap = new Map();
 
+// ─── 未対応文字があった場合の手動画数待ちユーザー
+const pendingUsers = {};
+
 // ─── Express ────────────────────────────────────────────────
 const app = express();
 
@@ -292,6 +295,22 @@ async function handleMessage(event) {
     });
   }
 
+  // ── 手動画数の受け取り（数字のみ送信 + 待ちユーザー） ───────
+  if (/^\d+$/.test(text) && pendingUsers[lineUserId]) {
+    const manualStrokes = parseInt(text, 10);
+    const { name: pendingName, date: pendingDate } = pendingUsers[lineUserId];
+    delete pendingUsers[lineUserId];
+
+    let sureiNumber = manualStrokes;
+    while (sureiNumber > 81) sureiNumber -= 81;
+    if (sureiNumber === 0) sureiNumber = 81;
+
+    const fortune = await generateCompleteFortune(pendingName, pendingDate, sureiNumber);
+    if (fortune.error) return reply(replyToken, formatErrorMessage(fortune.error));
+    await saveToCache(fortune, lineUserId);
+    return reply(replyToken, formatFortuneResult(fortune));
+  }
+
   // ── 感謝・感動メッセージ ──────────────────────────────────
   if (isThankYouMessage(text)) {
     return reply(replyToken, {
@@ -331,6 +350,29 @@ async function handleMessage(event) {
   // 鑑定生成
   console.log('📡 鑑定生成中...');
   const fortune = await generateCompleteFortune(name, date);
+
+  // 未対応文字がある場合は手動画数を要求
+  if (fortune.needsManualStrokes) {
+    pendingUsers[lineUserId] = { name, date };
+    return reply(replyToken, {
+      type: 'text',
+      text: [
+        '🌙 お名前の確認',
+        '',
+        `「${fortune.unknownChars.join('・')}」の`,
+        '画数を正確に読み取れませんでした。',
+        '',
+        '以下のいずれかでお試しください：',
+        '',
+        '① 一般的な漢字表記に変えて',
+        '　 もう一度お名前と生年月日を送る',
+        '　 例：﨑 → 崎',
+        '',
+        '② お名前の総画数を数字だけで送る',
+        '　 例：42',
+      ].join('\n'),
+    });
+  }
 
   if (fortune.error) {
     return reply(replyToken, formatErrorMessage(fortune.error));

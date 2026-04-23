@@ -305,6 +305,44 @@ function calcSurei(name) {
   return total === 0 ? 81 : total;
 }
 
+/**
+ * 1文字の画数を { count, unknown } 形式で返す
+ */
+function getStrokeCountWithCheck(char) {
+  if (HIRAGANA_STROKES[char] !== undefined) return { count: HIRAGANA_STROKES[char], unknown: false };
+  if (KATAKANA_STROKES[char] !== undefined) return { count: KATAKANA_STROKES[char], unknown: false };
+
+  try {
+    const info = kd.get(char);
+    if (info && info.stroke_count > 0) return { count: info.stroke_count, unknown: false };
+  } catch (_) {}
+
+  if (STROKES[char] !== undefined) return { count: STROKES[char], unknown: false };
+
+  console.warn(`画数未対応文字: ${char} (U+${char.charCodeAt(0).toString(16).toUpperCase()})`);
+  return { count: 1, unknown: true };
+}
+
+/**
+ * 未対応文字チェック付きの数霊計算
+ * @returns {{ sureiNumber: number, unknownChars: string[] }}
+ */
+function calcSureiWithCheck(name) {
+  let total = 0;
+  const unknownChars = [];
+
+  for (const ch of name) {
+    if (/[\s\d\p{P}\p{S}]/u.test(ch)) continue;
+    const result = getStrokeCountWithCheck(ch);
+    total += result.count;
+    if (result.unknown) unknownChars.push(ch);
+  }
+
+  while (total > 81) total -= 81;
+  const sureiNumber = total === 0 ? 81 : total;
+  return { sureiNumber, unknownChars };
+}
+
 // ─── メイン: 全データをまとめて返す ────────────────────────────
 
 /**
@@ -354,6 +392,8 @@ module.exports = {
   getTsuhenStar,
   getJunishiStar,
   calcSurei,
+  calcSureiWithCheck,
   getStrokeCount,
+  getStrokeCountWithCheck,
   getElement,
 };

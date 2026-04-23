@@ -4,7 +4,7 @@
  */
 const anthropic = require('../config/claude');
 const supabase  = require('../config/supabase');
-const { calcAll } = require('../utils/fortune');
+const { calcAll, calcSureiWithCheck } = require('../utils/fortune');
 
 // ─── 数霊の意味 (DBになければこのフォールバックを使う) ──────────────
 
@@ -110,10 +110,23 @@ async function getSureiMeaning(number) {
 
 // ─── メイン: 占い生成 ─────────────────────────────────────────
 
-async function generateCompleteFortune(name, date) {
+async function generateCompleteFortune(name, date, manualSureiNumber = null) {
   try {
+    // 未対応文字チェック（手動数霊が指定されている場合はスキップ）
+    if (manualSureiNumber === null) {
+      const { unknownChars } = calcSureiWithCheck(name);
+      if (unknownChars.length > 0) {
+        return { needsManualStrokes: true, unknownChars, name, date };
+      }
+    }
+
     // 1. ローカル計算
     const calc = calcAll(name, date);
+
+    // 手動数霊が指定されている場合は上書き
+    if (manualSureiNumber !== null) {
+      calc.sureiNumber = manualSureiNumber;
+    }
     const { yearPillar, monthPillar, dayPillar, tsuhen, junishi, element, sureiNumber, age } = calc;
 
     // 2. 数霊の意味をDBから取得
