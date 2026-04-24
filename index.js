@@ -74,6 +74,38 @@ app.post(
   async (req, res) => {
     res.json({ status: 'ok' });
     for (const event of req.body.events) {
+      if (event.type === 'follow') {
+        await lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{
+            type: 'text',
+            text: [
+              '🌕 月読み占いへようこそ',
+              '',
+              '月の光のように、あなたの心に',
+              'そっと寄り添う占いサービスです。',
+              '',
+              '四柱推命と数霊（かずたま）を組み合わせた',
+              'あなただけの鑑定をお届けします。',
+              '',
+              '─────────────────',
+              '✨ 無料鑑定の受け方',
+              '─────────────────',
+              'お名前と生年月日をスペースで区切って',
+              'そのまま送信してください。',
+              '',
+              '📝 例：',
+              '田中花子 1990-05-15',
+              '田中花子 1990/05/15',
+              '田中花子 19900515',
+              '田中花子 1990年5月15日',
+              '',
+              'さあ、あなただけの星の地図を',
+              '紐解いてみましょう🌟',
+            ].join('\n'),
+          }],
+        }).catch((err) => console.error('followイベント送信エラー:', err));
+      }
       if (event.type === 'message' && event.message.type === 'text') {
         await handleMessage(event).catch((err) =>
           console.error('handleMessage エラー:', err),
