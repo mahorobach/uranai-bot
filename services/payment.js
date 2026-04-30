@@ -25,12 +25,33 @@ const COCONALA_ENV_KEYS = {
   kotoshi: 'COCONALA_URL_KOTOSHI',
 };
 
+/** 恋愛用のよくある別名（Railway の Variables 名ミス対策） */
+const COCONALA_RENAI_ALIASES = [
+  'COCONALA_URL_RENAI',
+  'COCONALA_URL_LOVE',
+  'COCONALA_RENAI',
+];
+
+function normalizeCoconalaUrl(raw) {
+  const u = (raw || '').trim();
+  if (!u || !/^https?:\/\//i.test(u)) return '';
+  return u;
+}
+
 function getCoconalaUrl(fortuneType) {
-  const key = COCONALA_ENV_KEYS[fortuneType];
-  if (!key) return '';
-  const url = (process.env[key] || '').trim();
-  if (!url || !/^https?:\/\//i.test(url)) return '';
-  return url;
+  if (fortuneType === 'renai') {
+    for (const k of COCONALA_RENAI_ALIASES) {
+      const v = normalizeCoconalaUrl(process.env[k]);
+      if (v) return v;
+    }
+  } else {
+    const key = COCONALA_ENV_KEYS[fortuneType];
+    if (key) {
+      const v = normalizeCoconalaUrl(process.env[key]);
+      if (v) return v;
+    }
+  }
+  return normalizeCoconalaUrl(process.env.COCONALA_URL);
 }
 
 /** 載せるボタン用URLが1件以上あるか */

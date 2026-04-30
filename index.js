@@ -125,6 +125,8 @@ const PAID_KEYWORDS       = ['続きを知りたい', '詳しく知りたい', '
 const PAYMENT_KEYWORDS    = ['鑑定希望', '申込', '購入'];
 const MENU_FREE_KEYWORDS  = ['無料鑑定'];
 const MENU_PAID_KEYWORDS  = ['有料鑑定'];
+/** 旧リッチメニュー「恋愛」等がテキスト送信のときココナラ案内へ（※ボタンがURI直指定のStripeの場合はLINE管理画面の修正が必要） */
+const MENU_COCONALA_KEYWORDS = ['恋愛', '恋愛鑑定', '恋愛・仕事・本格鑑定'];
 const MENU_ABOUT_KEYWORDS = ['月読み診断とは'];
 const MENU_HOWTO_KEYWORDS = ['使い方'];
 
@@ -204,17 +206,20 @@ const COCONALA_FLEX_ROWS = [
 ];
 
 function buildPaymentMessage(name, date) {
-  const buttons = COCONALA_FLEX_ROWS.map(({ type, emoji }) => {
+  const seenUris = new Set();
+  const buttons = [];
+  for (const { type, emoji } of COCONALA_FLEX_ROWS) {
     const uri = getCoconalaUrl(type);
-    if (!uri) return null;
+    if (!uri || seenUris.has(uri)) continue;
+    seenUris.add(uri);
     const menuLabel = LABEL_MAP[type];
-    return {
+    buttons.push({
       type: 'button',
       style: 'primary',
       color: '#6B3FA0',
       action: { type: 'uri', label: `${emoji} ${menuLabel}`, uri },
-    };
-  }).filter(Boolean);
+    });
+  }
 
   if (buttons.length === 0) {
     return null;
@@ -326,7 +331,8 @@ async function handleMessage(event) {
   }
 
   // ── 有料鑑定ボタン押下 ────────────────────────────────────
-  if (MENU_PAID_KEYWORDS.includes(text) || PAID_KEYWORDS.includes(text)) {
+  if (MENU_PAID_KEYWORDS.includes(text) || PAID_KEYWORDS.includes(text)
+      || MENU_COCONALA_KEYWORDS.includes(text)) {
     let fortunes = await getAllFortunes(lineUserId);
 
     // DB に line_user_id が未登録の場合はメモリから補完
