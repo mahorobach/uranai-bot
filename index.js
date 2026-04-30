@@ -196,25 +196,24 @@ function buildPersonSelectMessage(persons) {
   };
 }
 
-// ─── ココナラ誘導 Flex（各ジャンルのサービスURLは環境変数で設定） ───
-const COCONALA_FLEX_ROWS = [
-  { type: 'renai', emoji: '💕' },
-  { type: 'zaiu', emoji: '💰' },
-  { type: 'shigoto', emoji: '💼' },
-  { type: 'sougou', emoji: '🌙' },
-  { type: 'kotoshi', emoji: '📅' },
+// ─── 有料鑑定 Flex（見た目は従来の価格表記。URI はココナラ env） ───
+const PAYMENT_FLEX_BUTTONS = [
+  { fortuneType: 'renai',    label: '💕 恋愛 880円',          style: 'primary',   color: '#6B3FA0' },
+  { fortuneType: 'shigoto',  label: '💼 仕事 880円',          style: 'primary',   color: '#6B3FA0' },
+  { fortuneType: 'zaiu',     label: '💰 財運 880円',          style: 'primary',   color: '#6B3FA0' },
+  { fortuneType: 'kotoshi',  label: '📅 時の運 1,500円',     style: 'primary',   color: '#6B3FA0' },
+  { fortuneType: 'sougou',   label: '🌙 人生の設計図 2,980円', style: 'secondary', color: '#3D1A6E' },
 ];
 
-function buildPaymentMessage(name, date) {
-  const buttons = COCONALA_FLEX_ROWS.map(({ type, emoji }) => {
-    const uri = getCoconalaUrl(type);
+function buildPaymentMessage(name, _date) {
+  const buttons = PAYMENT_FLEX_BUTTONS.map(({ fortuneType, label, style, color }) => {
+    const uri = getCoconalaUrl(fortuneType);
     if (!uri) return null;
-    const menuLabel = LABEL_MAP[type];
     return {
       type: 'button',
-      style: 'primary',
-      color: '#6B3FA0',
-      action: { type: 'uri', label: `${emoji} ${menuLabel}`, uri },
+      style,
+      color,
+      action: { type: 'uri', label, uri },
     };
   }).filter(Boolean);
 
@@ -231,7 +230,7 @@ function buildPaymentMessage(name, date) {
         { type: 'separator', margin: 'md' },
         {
           type: 'text',
-          text: `※ 準備中: ${missingLabels.join('、')}`,
+          text: `※ リンク未設定: ${missingLabels.join('、')}`,
           size: 'xs',
           color: '#888888',
           wrap: true,
@@ -241,7 +240,7 @@ function buildPaymentMessage(name, date) {
 
   return {
     type: 'flex',
-    altText: `月読み占い｜有料鑑定はココナラ（${name}さん）`,
+    altText: `月読み占い｜鑑定タイプを選んでください（${name}さん）`,
     contents: {
       type: 'bubble',
       header: {
@@ -263,23 +262,38 @@ function buildPaymentMessage(name, date) {
         contents: [
           {
             type: 'text',
-            text: `${name}さん（${date}）`,
+            text: `${name}さんの鑑定タイプを選んでください`,
             wrap: true,
             weight: 'bold',
           },
+          { type: 'separator', margin: 'md' },
           {
             type: 'text',
-            text: '有料鑑定はココナラからお申し込みいただけます。希望のジャンルのボタンを押してサービスページを開いてください。',
-            wrap: true,
+            text: '【単品鑑定】',
             size: 'sm',
-            color: '#333333',
+            weight: 'bold',
+            color: '#6B3FA0',
+            margin: 'md',
+          },
+          { type: 'text', text: '💕 恋愛｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '💼 仕事｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '💰 財運｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
+          { type: 'text', text: '📅 時の運｜約600文字　1,500円（税込）', size: 'sm', color: '#555555' },
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'text',
+            text: '【人生の設計図】',
+            size: 'sm',
+            weight: 'bold',
+            color: '#6B3FA0',
+            margin: 'md',
           },
           {
             type: 'text',
-            text: '料金・納期・内容の詳細は、各ココナラページの説明をご確認ください。',
-            wrap: true,
-            size: 'xs',
+            text: '🌙 約3,500文字・5つの本格鑑定　2,980円（税込）',
+            size: 'sm',
             color: '#555555',
+            wrap: true,
           },
           ...bodyExtra,
         ],
