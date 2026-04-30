@@ -206,20 +206,17 @@ const COCONALA_FLEX_ROWS = [
 ];
 
 function buildPaymentMessage(name, date) {
-  const seenUris = new Set();
-  const buttons = [];
-  for (const { type, emoji } of COCONALA_FLEX_ROWS) {
+  const buttons = COCONALA_FLEX_ROWS.map(({ type, emoji }) => {
     const uri = getCoconalaUrl(type);
-    if (!uri || seenUris.has(uri)) continue;
-    seenUris.add(uri);
+    if (!uri) return null;
     const menuLabel = LABEL_MAP[type];
-    buttons.push({
+    return {
       type: 'button',
       style: 'primary',
       color: '#6B3FA0',
       action: { type: 'uri', label: `${emoji} ${menuLabel}`, uri },
-    });
-  }
+    };
+  }).filter(Boolean);
 
   if (buttons.length === 0) {
     return null;
