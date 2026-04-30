@@ -20,7 +20,7 @@ function createXClient() {
 
 // ─── 投稿文をClaudeで生成 ────────────────────────────────────
 async function generatePostContent(dayOfWeek) {
-  const { system, theme, hashtags, lineUrl, dayName } = getPrompt(dayOfWeek);
+  const { system, theme, hashtags, linePromo, dayName } = getPrompt(dayOfWeek);
 
   if (!anthropic) {
     const fallback = `🌙 今日も月明かりがあなたを照らしています。\n詳しくはLINEで → ${lineUrl}\n${hashtags}`;
@@ -35,7 +35,9 @@ async function generatePostContent(dayOfWeek) {
   });
 
   const body    = message.content[0]?.text?.trim() ?? '';
-  const content = `${body}\n${lineUrl}\n${hashtags}`;
+  const content = linePromo
+    ? `${body}\n${linePromo}\n${hashtags}`
+    : `${body}\n${hashtags}`;
 
   return { content, theme, dayName };
 }

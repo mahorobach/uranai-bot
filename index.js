@@ -1,12 +1,10 @@
 require('dotenv').config();
 const express  = require('express');
 const line     = require('@line/bot-sdk');
-const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const supabase = require('./config/supabase');
 
 const { parseUserInput, isThankYouMessage }        = require('./utils/parser');
 const { formatFortuneResult,
-        formatPaidIntroMessage,
         formatPaymentMessage,
         formatAboutMessage,
         formatHowtoMessage,
@@ -16,7 +14,7 @@ const { generateCompleteFortune,
         generatePaidFortune,
         generateSekkei }                           = require('./services/fortune');
 const { getFromCache, saveToCache }               = require('./services/cache');
-const { createCheckoutSession, LABEL_MAP }        = require('./services/payment');
+const { LABEL_MAP, COCONALA_MENU_TYPES, getCoconalaUrl, hasAnyCoconalaUrl } = require('./services/payment');
 const { startDailyPostJob }                       = require('./jobs/daily-post');
 
 // ─── LINE 設定 ──────────────────────────────────────────────
@@ -40,31 +38,37 @@ const app = express();
 
 app.get('/', (_req, res) => res.json({ status: 'ok', app: '月読みの導き' }));
 
-// Stripe Webhook（raw body が必要なので LINE より先に定義）
-app.post(
-  '/stripe/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body, sig, process.env.STRIPE_WEBHOOK_SECRET,
-      );
-    } catch (err) {
-      console.error('Webhook署名エラー:', err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
+// Stripe Webhook（任意: ENABLE_STRIPE_WEBHOOK=true のときのみ。主導線はココナラ）
+if (process.env.ENABLE_STRIPE_WEBHOOK === 'true'
+    && process.env.STRIPE_SECRET_KEY
+    && process.env.STRIPE_WEBHOOK_SECRET) {
+  const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  app.post(
+    '/stripe/webhook',
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+      const sig = req.headers['stripe-signature'];
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body, sig, process.env.STRIPE_WEBHOOK_SECRET,
+        );
+      } catch (err) {
+        console.error('Webhook署名エラー:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const { lineUserId, fortuneType, userName, birthDate } = session.metadata;
-      await handlePaidFortune(lineUserId, fortuneType, userName, birthDate);
-    }
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const { lineUserId, fortuneType, userName, birthDate } = session.metadata;
+        await handlePaidFortune(lineUserId, fortuneType, userName, birthDate);
+      }
 
-    res.json({ received: true });
-  },
-);
+      res.json({ received: true });
+    },
+  );
+  console.log('💳 Stripe Webhook 有効（ENABLE_STRIPE_WEBHOOK=true）→ /stripe/webhook');
+}
 
 // LINE Webhook
 app.post(
@@ -190,19 +194,52 @@ function buildPersonSelectMessage(persons) {
   };
 }
 
-// ─── 決済ボタン Flex メッセージ ──────────────────────────────
-async function buildPaymentMessage(lineUserId, name, date) {
-  const [urlRenai, urlShigoto, urlZaiu, urlKotoshi, urlSekkei] = await Promise.all([
-    createCheckoutSession(lineUserId, 'renai',   name, date),
-    createCheckoutSession(lineUserId, 'shigoto', name, date),
-    createCheckoutSession(lineUserId, 'zaiu',    name, date),
-    createCheckoutSession(lineUserId, 'kotoshi', name, date),
-    createCheckoutSession(lineUserId, 'sekkei',  name, date),
-  ]);
+// ─── ココナラ誘導 Flex（各ジャンルのサービスURLは環境変数で設定） ───
+const COCONALA_FLEX_ROWS = [
+  { type: 'renai', emoji: '💕' },
+  { type: 'zaiu', emoji: '💰' },
+  { type: 'shigoto', emoji: '💼' },
+  { type: 'sougou', emoji: '🌟' },
+  { type: 'kotoshi', emoji: '📅' },
+];
+
+function buildPaymentMessage(name, date) {
+  const buttons = COCONALA_FLEX_ROWS.map(({ type, emoji }) => {
+    const uri = getCoconalaUrl(type);
+    if (!uri) return null;
+    const menuLabel = LABEL_MAP[type];
+    return {
+      type: 'button',
+      style: 'primary',
+      color: '#6B3FA0',
+      action: { type: 'uri', label: `${emoji} ${menuLabel}`, uri },
+    };
+  }).filter(Boolean);
+
+  if (buttons.length === 0) {
+    return null;
+  }
+
+  const missingLabels = COCONALA_MENU_TYPES
+    .filter((t) => !getCoconalaUrl(t))
+    .map((t) => LABEL_MAP[t]);
+
+  const bodyExtra = missingLabels.length
+    ? [
+        { type: 'separator', margin: 'md' },
+        {
+          type: 'text',
+          text: `※ 準備中: ${missingLabels.join('、')}`,
+          size: 'xs',
+          color: '#888888',
+          wrap: true,
+        },
+      ]
+    : [];
 
   return {
     type: 'flex',
-    altText: '月読み占い｜鑑定タイプを選んでください',
+    altText: `月読み占い｜有料鑑定はココナラ（${name}さん）`,
     contents: {
       type: 'bubble',
       header: {
@@ -222,29 +259,34 @@ async function buildPaymentMessage(lineUserId, name, date) {
         layout: 'vertical',
         spacing: 'md',
         contents: [
-          { type: 'text', text: `${name}さんの鑑定タイプを選んでください`, wrap: true, weight: 'bold' },
-          { type: 'separator', margin: 'md' },
-          { type: 'text', text: '【単品鑑定】', size: 'sm', weight: 'bold', color: '#6B3FA0', margin: 'md' },
-          { type: 'text', text: '💕 恋愛｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
-          { type: 'text', text: '💼 仕事｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
-          { type: 'text', text: '💰 財運｜約600文字　880円（税込）', size: 'sm', color: '#555555' },
-          { type: 'text', text: '📅 時の運｜約600文字　1,500円（税込）', size: 'sm', color: '#555555' },
-          { type: 'separator', margin: 'md' },
-          { type: 'text', text: '【人生の設計図】', size: 'sm', weight: 'bold', color: '#6B3FA0', margin: 'md' },
-          { type: 'text', text: '🌙 約3,500文字・5つの本格鑑定　2,980円（税込）', size: 'sm', color: '#555555', wrap: true },
+          {
+            type: 'text',
+            text: `${name}さん（${date}）`,
+            wrap: true,
+            weight: 'bold',
+          },
+          {
+            type: 'text',
+            text: '有料鑑定はココナラからお申し込みいただけます。希望のジャンルのボタンを押してサービスページを開いてください。',
+            wrap: true,
+            size: 'sm',
+            color: '#333333',
+          },
+          {
+            type: 'text',
+            text: '料金・納期・内容の詳細は、各ココナラページの説明をご確認ください。',
+            wrap: true,
+            size: 'xs',
+            color: '#555555',
+          },
+          ...bodyExtra,
         ],
       },
       footer: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        contents: [
-          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💕 恋愛　880円',        uri: urlRenai   }},
-          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💼 仕事　880円',        uri: urlShigoto }},
-          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '💰 財運　880円',        uri: urlZaiu    }},
-          { type: 'button', style: 'primary',   color: '#6B3FA0', action: { type: 'uri', label: '📅 時の運　1,500円', uri: urlKotoshi }},
-          { type: 'button', style: 'secondary', color: '#3D1A6E', action: { type: 'uri', label: '🌙 人生の設計図　2,980円', uri: urlSekkei }},
-        ],
+        contents: buttons,
       },
     },
   };
@@ -303,7 +345,29 @@ async function handleMessage(event) {
     }
 
     if (fortunes.length === 1) {
-      const msg = await buildPaymentMessage(lineUserId, fortunes[0].name, fortunes[0].date);
+      if (!hasAnyCoconalaUrl()) {
+        return reply(replyToken, {
+          type: 'text',
+          text: [
+            '🔮 有料鑑定（ココナラ）',
+            '',
+            'ただいまココナラへのリンク準備中です。',
+            'しばらくしてから「有料鑑定」からもう一度お試しください。',
+          ].join('\n'),
+        });
+      }
+      const msg = buildPaymentMessage(fortunes[0].name, fortunes[0].date);
+      if (!msg) {
+        return reply(replyToken, {
+          type: 'text',
+          text: [
+            '🔮 有料鑑定（ココナラ）',
+            '',
+            'ココナラのURLが未設定のため、ガイドを表示できませんでした。',
+            '管理者に環境変数 COCONALA_URL_* の設定をご確認ください。',
+          ].join('\n'),
+        });
+      }
       return reply(replyToken, msg);
     }
 
@@ -315,7 +379,24 @@ async function handleMessage(event) {
     const parts = text.split(':');
     const name  = parts[1];
     const date  = parts[2];
-    const msg   = await buildPaymentMessage(lineUserId, name, date);
+    if (!hasAnyCoconalaUrl()) {
+      return reply(replyToken, {
+        type: 'text',
+        text: [
+          '🔮 有料鑑定（ココナラ）',
+          '',
+          'ただいまココナラへのリンク準備中です。',
+          'しばらくしてからお試しください。',
+        ].join('\n'),
+      });
+    }
+    const msg = buildPaymentMessage(name, date);
+    if (!msg) {
+      return reply(replyToken, {
+        type: 'text',
+        text: 'ココナラのURLが未設定のため、ガイドを表示できませんでした。',
+      });
+    }
     return reply(replyToken, msg);
   }
 
@@ -414,7 +495,7 @@ async function handleMessage(event) {
   return reply(replyToken, formatFortuneResult(fortune));
 }
 
-// ─── 有料鑑定生成 & プッシュ送信（Stripe Webhook から呼ばれる）
+// ─── 有料鑑定生成 & プッシュ送信（Stripe レガシー Webhook / 将来の PayJP 等から呼び出し可能）
 async function handlePaidFortune(lineUserId, fortuneType, userName, birthDate) {
   console.log(`有料鑑定生成: ${LABEL_MAP[fortuneType]} / ${userName} / ${birthDate}`);
 
