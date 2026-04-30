@@ -201,7 +201,7 @@ const COCONALA_FLEX_ROWS = [
   { type: 'renai', emoji: '💕' },
   { type: 'zaiu', emoji: '💰' },
   { type: 'shigoto', emoji: '💼' },
-  { type: 'sougou', emoji: '🌟' },
+  { type: 'sougou', emoji: '🌙' },
   { type: 'kotoshi', emoji: '📅' },
 ];
 

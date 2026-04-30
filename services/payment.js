@@ -8,7 +8,7 @@ const LABEL_MAP = {
   renai:   '恋愛運',
   zaiu:    '財運',
   shigoto: '仕事運',
-  sougou:  '総合運',
+  sougou:  '人生の設計図',
   kotoshi: '時の運',
   /** Stripe/PayJP Webhook 用（セット鑑定）。ココナラ導線には出さない */
   sekkei:  '人生の設計図',
